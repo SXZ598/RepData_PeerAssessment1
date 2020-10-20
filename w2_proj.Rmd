@@ -1,0 +1,98 @@
+---
+title: "W2_proj"
+author: "SIYI"
+date: "10/19/2020"
+output: html_document
+---
+
+## Loading and preprocessing the data
+```{r}
+activity <- read.csv("activity.csv")
+dim(activity) #17568 rows and 3 columns
+names(activity)
+length(unique(activity$date)) #61 unique dates.
+```
+
+## What is mean total number of steps taken per day?
+
+```{r}
+#total number of steps taken per day
+total_number_steps <- with(activity, tapply(steps, as.factor(activity$date), sum))
+summary(total_number_steps)
+```
+Without removing the missingness, the mean total number of steps taken per day is 10766, median is 10765.
+
+```{r}
+hist(x = total_number_steps, main = "Total number of steps taken per day", xlab = "Total number of steps")
+```
+
+
+## What is the average daily activity pattern?
+
+```{r}
+activity1 <- activity[!is.na(activity$steps),]
+mean_steps <- with(activity1, tapply(steps, activity1$interval, mean))
+interval <- levels(as.factor(activity1$interval))
+plot(interval, mean_steps, type ="l", main = "Average number of steps taken", xlab = "interval", ylab = "Mean steps")
+```
+
+```{r}
+dt <- data.frame(mean_steps, interval)
+dt[dt$mean_steps==max(dt$mean_steps),]
+```
+Interval 835 contains the max number of steps.s
+
+## Imputing missing values
+
+```{r check the missingness}
+n_na <- activity[(which(is.na(activity))),] #2304 records have missing values
+na_steps <- activity[(which(is.na(activity$steps))),] #2304
+na_date <- activity[(which(is.na(activity$date))),] #0
+na_interval <- activity[(which(is.na(activity$interval))),] #2304
+```
+
+Only `steps` has misssingness. The total number of missingness is 2304.
+
+```{r}
+#replace NA with mean
+n_na$steps <- mean_steps
+complete_act <- rbind(n_na, activity1)
+```
+
+```{r}
+total_number_steps2 <- with(complete_act, tapply(steps, as.factor(complete_act$date), sum))
+#Make a histogram 
+hist(total_number_steps2, main = "Total number of steps taken per day", xlab = "Total number of steps")
+```
+
+```{r}
+summary(total_number_steps2)
+```
+The mean total number of steps taken per day is 10766, median is 10766.
+
+## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+complete_act$days <- weekdays(as.Date(complete_act$date))
+# find weekend features in the dataset
+weekend_feature <- grep("Saturday|Sunday", complete_act$days, ignore.case = T)
+# subset data of the weekend
+weekend_dt<- complete_act[weekend_feature, ]
+weekend_dt$weekday <- "weekend"
+
+# subset data of the weekday
+weekday_dt <- subset(complete_act,complete_act$days!=weekend_feature)
+weekday_dt$weekday <- "weekday"
+new <- rbind(weekday_dt, weekend_dt)
+```
+
+```{r}
+library(ggplot2)
+mean_number_steps <- aggregate(steps~ interval+weekday, new, mean)
+ggplot(mean_number_steps, aes(interval, steps)) +
+    geom_line(stat = "identity", aes(color = weekday)) +
+    theme_gray() +
+    facet_grid(weekday ~ ., scales="fixed", space="fixed") +
+    labs(x="Interval", y=expression("Number of Steps")) +
+    ggtitle("Steps Per Interval")
+```
+
